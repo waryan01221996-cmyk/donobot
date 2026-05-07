@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 def print_log(text):
-    # Memaksa teks langsung keluar ke log GitHub Actions (Unbuffered)
+    # Memaksa teks langsung keluar ke log (Unbuffered)
     print(text, flush=True)
     sys.stdout.flush()
 
@@ -31,56 +31,71 @@ def run_bot():
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    # Menghapus flag webdriver agar tidak terdeteksi bot
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     })
 
     try:
-        # 1. PROSES MENGAMBIL SEMUA LINK DARI PROFIL
+        # 1. PROSES MENGUMPULKAN LINK DARI PROFIL
         profile_url = "https://www.febspot.com/heru01221996"
         print_log(f">>> Membuka profil: {profile_url}")
         driver.get(profile_url)
         time.sleep(5)
 
-        print_log(">>> Memulai pemuatan semua video (Load more)...")
+        print_log(">>> Memulai pemuatan video (Load more)...")
         
-        while True:
+        last_count = 0
+        same_count_retry = 0
+        max_load_clicks = 20 # Batas maksimal klik load more
+
+        for i in range(max_load_clicks):
+            # Ambil jumlah video saat ini
+            current_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
+            current_count = len(set([el.get_attribute("href") for el in current_elements]))
+            
+            print_log(f"Terdeteksi: {current_count} video.")
+
+            # Berhenti jika jumlah video tidak bertambah setelah klik sebelumnya
+            if current_count == last_count:
+                same_count_retry += 1
+                if same_count_retry >= 2:
+                    print_log("Tidak ada video baru lagi. Selesai memuat halaman.")
+                    break
+            else:
+                same_count_retry = 0
+            
+            last_count = current_count
+
             try:
-                # Scroll ke bawah untuk memastikan tombol terlihat
+                # Scroll ke bawah agar tombol terdeteksi
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 time.sleep(2)
 
-                # Mencari tombol 'Load more' dengan berbagai kemungkinan teks/elemen
-                load_more_btn = WebDriverWait(driver, 8).until(
+                # Cari tombol Load More
+                load_more_btn = WebDriverWait(driver, 7).until(
                     EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Load more')] | //div[contains(text(), 'Load more')] | //*[contains(@class, 'load-more')]"))
                 )
                 
-                # Klik menggunakan JavaScript agar tidak terhalang elemen lain (seperti iklan)
+                # Klik via JavaScript (lebih stabil)
                 driver.execute_script("arguments[0].click();", load_more_btn)
-                print_log("Berhasil klik 'Load more'. Menunggu konten baru...")
-                
-                # Jeda agar server punya waktu memuat video baru
-                time.sleep(4) 
-                
-            except Exception:
-                # Jika tombol tidak ditemukan lagi (artinya sudah mentok bawah)
-                print_log("Semua video telah dimuat atau tombol tidak ditemukan lagi.")
+                print_log(f"Klik ke-{i+1} berhasil. Menunggu konten...")
+                time.sleep(5) 
+            except:
+                print_log("Tombol Load more sudah tidak ada.")
                 break
 
-        # Mengambil semua link video yang muncul setelah proses Load more selesai
+        # Finalisasi daftar link
         elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
-        # Menggunakan set() agar link tidak duplikat
         video_links = list(set([el.get_attribute("href") for el in elements if "/video/" in el.get_attribute("href")]))
         
-        print_log(f">>> Berhasil mengumpulkan {len(video_links)} video.")
+        print_log(f">>> TOTAL AKHIR: Berhasil mengumpulkan {len(video_links)} video.")
         print_log("-" * 40)
 
         if not video_links:
             print_log("Gagal mendapatkan link video. Skrip dihentikan.")
             return
 
-        # 2. PROSES MENONTON (Logika Asli Anda)
+        # 2. PROSES MENONTON (Logika Utama)
         random.shuffle(video_links)
         
         for index, link in enumerate(video_links):
@@ -92,7 +107,7 @@ def run_bot():
                 wait = WebDriverWait(driver, 25)
                 video_element = wait.until(EC.presence_of_element_located((By.TAG_NAME, "video")))
                 
-                # Klik play
+                # Klik play menggunakan ActionChains
                 actions = ActionChains(driver)
                 actions.move_to_element(video_element).click().perform()
                 print_log("Berhasil klik Play.")
@@ -112,7 +127,7 @@ def run_bot():
                             print_log("Konfirmasi: Video selesai ditonton.")
                             break
                             
-                        # Safety timeout (durasi + buffer 20 detik)
+                        # Safety timeout
                         if (time.time() - start_watch) > (duration + 20):
                             print_log("Timeout: Melanjutkan ke video berikutnya.")
                             break
@@ -126,7 +141,7 @@ def run_bot():
                     time.sleep(25)
 
             except Exception:
-                print_log("Peringatan: Gagal memuat video atau elemen tidak ditemukan.")
+                print_log("Peringatan: Gagal memuat video atau elemen hilang.")
             
             jeda = random.randint(4, 7)
             print_log(f"Istirahat {jeda} detik...")
@@ -138,6 +153,6 @@ def run_bot():
         print_log("\nProses selesai. Menutup browser.")
         driver.quit()
 
-# Perbaikan NameError: Menggunakan double underscore
-if __name__ == "__main__":
+# Menggunakan double underscore sesuai standar Python
+if name == "main":
     run_bot()
