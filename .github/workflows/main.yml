@@ -1,4 +1,4 @@
-name: Febspot Bot Manual Mode
+name: waryan
 
 on:
   workflow_dispatch:
