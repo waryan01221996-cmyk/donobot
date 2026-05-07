@@ -11,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 def print_log(text):
+    # Memaksa teks langsung keluar ke log GitHub Actions (Unbuffered)
     print(text, flush=True)
     sys.stdout.flush()
 
@@ -30,45 +31,56 @@ def run_bot():
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
+    # Menghapus flag webdriver agar tidak terdeteksi bot
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     })
 
     try:
-        # 1. PROSES MENGAMBIL SEMUA LINK DENGAN KLIK 'LOAD MORE'
+        # 1. PROSES MENGAMBIL SEMUA LINK DARI PROFIL
         profile_url = "https://www.febspot.com/heru01221996"
         print_log(f">>> Membuka profil: {profile_url}")
         driver.get(profile_url)
         time.sleep(5)
 
+        print_log(">>> Memulai pemuatan semua video (Load more)...")
+        
         while True:
             try:
-                # Cari tombol 'Load more'
-                # Berdasarkan gambar, biasanya berupa button atau element dengan teks 'Load more'
-                load_more_btn = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Load more')] | //div[contains(text(), 'Load more')]"))
+                # Scroll ke bawah untuk memastikan tombol terlihat
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+
+                # Mencari tombol 'Load more' dengan berbagai kemungkinan teks/elemen
+                load_more_btn = WebDriverWait(driver, 8).until(
+                    EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Load more')] | //div[contains(text(), 'Load more')] | //*[contains(@class, 'load-more')]"))
                 )
                 
-                # Scroll ke tombol agar bisa diklik
-                driver.execute_script("arguments[0].scrollIntoView();", load_more_btn)
-                time.sleep(1)
+                # Klik menggunakan JavaScript agar tidak terhalang elemen lain (seperti iklan)
+                driver.execute_script("arguments[0].click();", load_more_btn)
+                print_log("Berhasil klik 'Load more'. Menunggu konten baru...")
                 
-                load_more_btn.click()
-                print_log("Klik 'Load more'...")
-                time.sleep(3) # Tunggu video baru dimuat
-            except:
-                # Jika tombol tidak ditemukan lagi atau sudah habis
-                print_log("Semua video telah dimuat.")
+                # Jeda agar server punya waktu memuat video baru
+                time.sleep(4) 
+                
+            except Exception:
+                # Jika tombol tidak ditemukan lagi (artinya sudah mentok bawah)
+                print_log("Semua video telah dimuat atau tombol tidak ditemukan lagi.")
                 break
 
-        # Mengambil semua link video yang muncul
+        # Mengambil semua link video yang muncul setelah proses Load more selesai
         elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
-        video_links = list(set([el.get_attribute("href") for el in elements]))
+        # Menggunakan set() agar link tidak duplikat
+        video_links = list(set([el.get_attribute("href") for el in elements if "/video/" in el.get_attribute("href")]))
         
-        print_log(f">>> Total ditemukan {len(video_links)} video.")
+        print_log(f">>> Berhasil mengumpulkan {len(video_links)} video.")
         print_log("-" * 40)
 
-        # 2. PROSES MENONTON (Logika Tetap Sama)
+        if not video_links:
+            print_log("Gagal mendapatkan link video. Skrip dihentikan.")
+            return
+
+        # 2. PROSES MENONTON (Logika Asli Anda)
         random.shuffle(video_links)
         
         for index, link in enumerate(video_links):
@@ -80,12 +92,14 @@ def run_bot():
                 wait = WebDriverWait(driver, 25)
                 video_element = wait.until(EC.presence_of_element_located((By.TAG_NAME, "video")))
                 
+                # Klik play
                 actions = ActionChains(driver)
                 actions.move_to_element(video_element).click().perform()
                 print_log("Berhasil klik Play.")
 
+                # Ambil durasi video
                 duration = driver.execute_script("return arguments[0].duration;", video_element)
-
+                
                 if duration and duration > 0:
                     print_log(f"Video dikesan. Durasi: {int(duration)} detik.")
                     start_watch = time.time()
@@ -98,6 +112,7 @@ def run_bot():
                             print_log("Konfirmasi: Video selesai ditonton.")
                             break
                             
+                        # Safety timeout (durasi + buffer 20 detik)
                         if (time.time() - start_watch) > (duration + 20):
                             print_log("Timeout: Melanjutkan ke video berikutnya.")
                             break
@@ -111,7 +126,7 @@ def run_bot():
                     time.sleep(25)
 
             except Exception:
-                print_log("Peringatan: Gagal memuat video.")
+                print_log("Peringatan: Gagal memuat video atau elemen tidak ditemukan.")
             
             jeda = random.randint(4, 7)
             print_log(f"Istirahat {jeda} detik...")
@@ -123,5 +138,6 @@ def run_bot():
         print_log("\nProses selesai. Menutup browser.")
         driver.quit()
 
-if __name__ == "__main__":
+# Perbaikan NameError: Menggunakan double underscore
+if name == "main":
     run_bot()
