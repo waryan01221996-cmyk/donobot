@@ -139,5 +139,5 @@ def run_bot():
         driver.quit()
 
 # Perbaikan NameError: Menggunakan double underscore
-if name == "main":
+if __name__ == "__main__":
     run_bot()
