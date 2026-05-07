@@ -39,6 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh run list --workflow "Febspot Bot Manual Mode" --status completed --limit 100 --json databaseId | jq -r '.[].databaseId' | xargs -I{} gh run delete {} || true
           echo "Menunggu 1 menit agar sistem tidak overload..."
           sleep 60
           gh workflow run "Febspot Bot Manual Mode"
