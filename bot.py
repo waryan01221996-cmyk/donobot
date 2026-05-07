@@ -123,5 +123,5 @@ def run_bot():
         print_log("\nProses selesai. Menutup browser.")
         driver.quit()
 
-if name == "main":
+if __name__ == "__main__":
     run_bot()
