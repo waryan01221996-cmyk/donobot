@@ -6,33 +6,38 @@ orbs:
 jobs:
   run-bot:
     docker:
-      # Menggunakan image dengan browser agar bot Selenium bisa berjalan
-      - image: cimg/python:3.8-browsers
+      # Menggunakan image dengan browser untuk Selenium
+      - image: cimg/python:3.10-browsers
     steps:
       - checkout
       
-      # Instalasi dependensi dari requirements.txt
+      # Instalasi library dari requirements.txt
       - python/install-packages:
           pkg-manager: pip
       
-      # Jalankan bot Anda
+      # Cek IP (biar kamu bisa lihat IP-nya ganti di Log) dan Jalankan Bot
       - run:
-          name: Jalankan Bot
+          name: Cek IP dan Jalankan Bot
           command: |
-            # Ganti 'main.py' dengan nama file script bot Anda
+            echo "IP Publik saat ini:"
+            curl ifconfig.me
+            echo -e "\n----------------------------"
+            # Ganti 'bot.py' jika nama file kamu berbeda
             python bot.py
 
 workflows:
-  # Jalan otomatis saat Anda push kode ke GitHub
-  manual-run:
+  # 1. Jalan otomatis setiap kali kamu edit/push kode
+  on_commit:
     jobs:
       - run-bot
 
-  # Jalan otomatis setiap jam (Cron Job)
-  auto-run:
+  # 2. Rerun otomatis terjadwal (IP Berganti setiap sesi)
+  per_15_menit:
     triggers:
       - schedule:
-          cron: "0 * * * *"
+          # Format Cron: "Menit Jam Hari Bulan Hari_Minggu"
+          # "*/15 * * * *" artinya setiap 15 menit
+          cron: "*/15 * * * *"
           filters:
             branches:
               only:
