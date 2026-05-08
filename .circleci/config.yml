@@ -1,0 +1,41 @@
+version: 2.1
+
+orbs:
+  python: circleci/python@2
+
+jobs:
+  run-bot:
+    docker:
+      # Menggunakan image dengan browser agar bot Selenium bisa berjalan
+      - image: cimg/python:3.8-browsers
+    steps:
+      - checkout
+      
+      # Instalasi dependensi dari requirements.txt
+      - python/install-packages:
+          pkg-manager: pip
+      
+      # Jalankan bot Anda
+      - run:
+          name: Jalankan Bot
+          command: |
+            # Ganti 'main.py' dengan nama file script bot Anda
+            python main.py
+
+workflows:
+  # Jalan otomatis saat Anda push kode ke GitHub
+  manual-run:
+    jobs:
+      - run-bot
+
+  # Jalan otomatis setiap jam (Cron Job)
+  auto-run:
+    triggers:
+      - schedule:
+          cron: "0 * * * *"
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - run-bot
