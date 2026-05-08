@@ -20,7 +20,7 @@ jobs:
           name: Jalankan Bot
           command: |
             # Ganti 'main.py' dengan nama file script bot Anda
-            python main.py
+            python bot.py
 
 workflows:
   # Jalan otomatis saat Anda push kode ke GitHub
