@@ -1,7 +1,6 @@
 import time
 import random
 import sys
-import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -12,13 +11,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 def print_log(text):
-    timestamp = time.strftime("%H:%M:%S")
-    print(f"[{timestamp}] {text}", flush=True)
+    print(text, flush=True)
     sys.stdout.flush()
 
 def run_bot():
-    # Daftar link video manual (119 link)
-    video_links_manual = [
+    # Daftar link video manual (Update: 119 link)
+    video_links = [
         "https://www.febspot.com/video/3218504", "https://www.febspot.com/video/3218505",
         "https://www.febspot.com/video/3218527", "https://www.febspot.com/video/3218528",
         "https://www.febspot.com/video/3216677", "https://www.febspot.com/video/3217419",
@@ -101,66 +99,84 @@ def run_bot():
     })
 
     try:
-        # CEK IP GITHUB
+        # CEK IP
         driver.get("https://api.ipify.org")
         ip_addr = driver.find_element(By.TAG_NAME, "body").text
-        print_log(f">>> IP GITHUB ACTIONS: {ip_addr}")
+        print_log(f">>> IP BROWSER: {ip_addr}")
         print_log("-" * 40)
 
-        # 2. SCRAPE PROFIL
+        # 2. LOAD MORE DARI PROFIL (Untuk menangkap link baru otomatis)
         profile_url = "https://www.febspot.com/heru01221996"
         print_log(f">>> Mengecek profil untuk link tambahan: {profile_url}")
         driver.get(profile_url)
-        time.sleep(10)
+        time.sleep(7)
 
-        for i in range(15):
+        last_count = 0
+        same_count_retry = 0
+        for i in range(25):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(4)
+            time.sleep(3)
+            
+            elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
+            current_count = len(set([el.get_attribute("href") for el in elements if el.get_attribute("href")]))
+            
+            if current_count == last_count:
+                same_count_retry += 1
+                if same_count_retry >= 3: break
+            else:
+                same_count_retry = 0
+            last_count = current_count
+
             try:
-                load_more_btn = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Load more')]")))
+                load_more_btn = WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Load more')]")))
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", load_more_btn)
+                time.sleep(1)
                 driver.execute_script("arguments[0].click();", load_more_btn)
-                print_log(f"Berhasil klik Load More ke-{i+1}")
-                time.sleep(5)
+                time.sleep(6)
             except:
                 break
 
-        # Gabungkan link & ambil 100 secara acak
+        # Gabungkan semua link
         scraped_links = [el.get_attribute("href") for el in driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")]
-        all_links = list(set(video_links_manual + scraped_links))
+        video_links = list(set(video_links + scraped_links))
         
-        target_total = 100
-        if len(all_links) > target_total:
-            video_links = random.sample(all_links, target_total)
-            print_log(f">>> Memilih {target_total} video acak dari {len(all_links)} link.")
-        else:
-            video_links = all_links
-            random.shuffle(video_links)
-
-        print_log(f">>> TOTAL AKHIR: {len(video_links)} video diproses.")
+        print_log(f">>> TOTAL AKHIR: {len(video_links)} video siap diputar.")
         print_log("-" * 40)
 
         # 3. MULAI NONTON
+        random.shuffle(video_links)
         for index, link in enumerate(video_links):
-            print_log(f"[{index+1}/{len(video_links)}] Membuka: {link}")
+            print_log(f"\n[{index+1}/{len(video_links)}] Membuka: {link}")
             driver.get(link)
             time.sleep(5) 
             
             try:
-                wait = WebDriverWait(driver, 20)
+                wait = WebDriverWait(driver, 25)
                 video_element = wait.until(EC.presence_of_element_located((By.TAG_NAME, "video")))
-                ActionChains(driver).move_to_element(video_element).click().perform()
+                
+                actions = ActionChains(driver)
+                actions.move_to_element(video_element).click().perform()
+                print_log("Klik Play.")
 
                 duration = driver.execute_script("return arguments[0].duration;", video_element)
                 if duration and duration > 0:
                     print_log(f"Durasi: {int(duration)} detik.")
-                    time.sleep(duration + 2)
-                    print_log("Selesai.")
+                    start_watch = time.time()
+                    while True:
+                        current = driver.execute_script("return arguments[0].currentTime;", video_element)
+                        ended = driver.execute_script("return arguments[0].ended;", video_element)
+                        if ended or current >= (duration - 1):
+                            print_log("Selesai.")
+                            break
+                        if (time.time() - start_watch) > (duration + 20):
+                            break
+                        time.sleep(5)
                 else:
                     time.sleep(25)
-            except:
+            except Exception:
                 print_log("Gagal memuat video.")
             
-            time.sleep(random.randint(3, 6))
+            time.sleep(random.randint(4, 7))
 
     except Exception as e:
         print_log(f"ERROR: {e}")
@@ -168,6 +184,5 @@ def run_bot():
         driver.quit()
 
 if __name__ == "__main__":
-    print_log("🚀 START BOT")
     run_bot()
-    print_log("🏁 FINISH BOT")
+    
