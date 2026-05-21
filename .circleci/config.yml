@@ -1,37 +1,39 @@
 version: 2.1
 
-orbs:
-  python: circleci/python@2
-
 jobs:
-  run-bot:
+  build:
     docker:
       - image: cimg/python:3.10-browsers
+    parameters:
+      instance:
+        type: string
     steps:
       - checkout
-      - python/install-packages:
-          pkg-manager: pip
       - run:
-          name: Cek IP dan Eksekusi Bot
+          name: Install Tor and Privoxy
           command: |
-            echo "Alamat IP Server saat ini:"
-            curl -s ifconfig.me
-            echo -e "\n------------------------------------------"
-            python bot.py
+            sudo apt-get update
+            sudo apt-get install -y tor privoxy
+            echo "forward-socks5t / 127.0.0.1:9050 ." | sudo tee -a /etc/privoxy/config
+            sudo service tor start
+            sudo service privoxy start
+      - run:
+          name: Install Dependencies
+          command: pip install selenium
+      - run:
+          name: Run Bot (Instance << parameters.instance >>)
+          command: |
+            chmod +x start.sh
+            ./start.sh
 
 workflows:
-  saat_update:
+  main_workflow:
     jobs:
-      - run-bot
-
-  setiap_30_menit:
-    triggers:
-      - schedule:
-          # Menggunakan format daftar menit agar tidak error schema
-          cron: "0,30 * * * *"
-          filters:
-            branches:
-              only:
-                - main
-    jobs:
-      - run-bot
+      - build:
+          matrix:
+            parameters:
+              instance: [
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+                "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+                "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"
+              ]
