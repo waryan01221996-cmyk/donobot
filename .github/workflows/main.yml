@@ -1,7 +1,11 @@
-name: Manual Mode
+name: waryan
 
 on:
   workflow_dispatch: # Hanya bisa dijalankan secara manual
+
+# Mengizinkan GitHub Actions untuk menghapus riwayat run lama dan memicu run baru
+permissions:
+  actions: write
 
 jobs:
   run-bot:
@@ -27,3 +31,23 @@ jobs:
 
       - name: Run bot
         run: python -u bot.py
+
+      - name: Hapus Riwayat Workflows Lama (Sukses & Gagal)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🧹 Membersihkan riwayat run lama dari workflow ini..."
+          # Mengambil daftar run ID yang statusnya sudah selesai (completed), lalu menghapusnya satu per satu
+          for run_id in $(gh run list --workflow=manual.yml --status=completed --json databaseId --jq '.[].databaseId'); do
+            echo "Menghapus run ID: $run_id"
+            gh run delete "$run_id"
+          done
+
+      - name: Trigger Rerun Otomatis
+        if: always() 
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔄 Memulai ulang workflow secara otomatis..."
+          gh workflow run manual.yml
