@@ -1,21 +1,20 @@
+import sys
 import time
 import random
-import sys
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+from urllib.parse import urlparse
 
 def print_log(text):
-    print(text, flush=True)
+    timestamp = time.strftime("%H:%M:%S")
+    print(f"[{timestamp}] {text}", flush=True)
     sys.stdout.flush()
 
 def run_bot():
-    # Daftar link video manual (Update: 119 link)
+    # Daftar 119 link video manual bawaan kamu
     video_links = [
         "https://www.febspot.com/video/3218504", "https://www.febspot.com/video/3218505",
         "https://www.febspot.com/video/3218527", "https://www.febspot.com/video/3218528",
@@ -79,110 +78,119 @@ def run_bot():
         "https://www.febspot.com/video/3141592"
     ]
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--mute-audio")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+    print_log(">>> Menyiapkan Selenium WebDriver (Koneksi Reguler Tanpa Tor)...")
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--mute-audio")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
 
-    print_log(">>> Menyiapkan Browser...")
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    })
-
+    driver = webdriver.Chrome(options=options)
+    
+    # 1. CEK KONEKSI IP UTAMA
     try:
-        # CEK IP
         driver.get("https://api.ipify.org")
         ip_addr = driver.find_element(By.TAG_NAME, "body").text
-        print_log(f">>> IP BROWSER: {ip_addr}")
-        print_log("-" * 40)
+        print_log(f"🟢 IP BROWSER AKTIF: {ip_addr.strip()}")
+        print_log("-" * 45)
+    except Exception:
+        print_log("⚠️ Gagal cek IP, lanjut mengeksekusi target...")
 
-        # 2. LOAD MORE DARI PROFIL (Untuk menangkap link baru otomatis)
-        profile_url = "https://www.febspot.com/heru01221996"
-        print_log(f">>> Mengecek profil untuk link tambahan: {profile_url}")
-        driver.get(profile_url)
-        time.sleep(7)
+    # 2. LOAD MORE DARI PROFIL (Diadopsi dari Skrip Pintarmu)
+    profile_url = "https://www.febspot.com/heru01221996"
+    print_log(f"🔍 Mencari seluruh video di halaman profil: {profile_url}")
+    driver.get(profile_url)
+    time.sleep(8)
 
-        last_count = 0
-        same_count_retry = 0
-        for i in range(25):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(3)
-            
-            elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
-            current_count = len(set([el.get_attribute("href") for el in elements if el.get_attribute("href")]))
-            
-            if current_count == last_count:
-                same_count_retry += 1
-                if same_count_retry >= 3: break
-            else:
-                same_count_retry = 0
-            last_count = current_count
-
-            try:
-                load_more_btn = WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Load more')]")))
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", load_more_btn)
-                time.sleep(1)
-                driver.execute_script("arguments[0].click();", load_more_btn)
-                time.sleep(6)
-            except:
-                break
-
-        # Gabungkan semua link
-        scraped_links = [el.get_attribute("href") for el in driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")]
-        video_links = list(set(video_links + scraped_links))
+    last_count = 0
+    
+    # Maksimal 25 kali percobaan scroll untuk pengamanan ekstra
+    for i in range(25): 
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(4)
         
-        print_log(f">>> TOTAL AKHIR: {len(video_links)} video siap diputar.")
-        print_log("-" * 40)
-
-        # 3. MULAI NONTON
-        random.shuffle(video_links)
-        for index, link in enumerate(video_links):
-            print_log(f"\n[{index+1}/{len(video_links)}] Membuka: {link}")
-            driver.get(link)
-            time.sleep(5) 
+        # Hitung jumlah link video unik yang saat ini ter-load di layar
+        elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
+        current_count = len(set([el.get_attribute("href") for el in elements if el.get_attribute("href")]))
+        
+        print_log(f"🔄 Scan ke-{i+1}: Ditemukan {current_count} link sementara di halaman...")
+        
+        # JIKA JUMLAH VIDEO SUDAH TIDAK BERTAMBAH, BREAK (Solusi anti-macet)
+        if current_count == last_count: 
+            print_log("✨ Jumlah video tidak bertambah lagi. Semua video profil berhasil dimuat penuh!")
+            break
             
-            try:
-                wait = WebDriverWait(driver, 25)
-                video_element = wait.until(EC.presence_of_element_located((By.TAG_NAME, "video")))
+        last_count = current_count
+
+        # Mencoba klik tombol 'Load more' jika muncul di layar
+        try:
+            load_more_btn = driver.find_element(By.XPATH, "//*[contains(text(), 'Load more')]")
+            driver.execute_script("arguments[0].click();", load_more_btn)
+            time.sleep(4)
+        except:
+            pass
+
+    # Mengambil semua link video hasil scraping profil
+    scraped_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
+    scraped_links = [el.get_attribute("href") for el in scraped_elements if el.get_attribute("href")]
+    
+    # Gabungkan secara unik (menghapus duplikat)
+    video_links = list(set(video_links + scraped_links))
+    print_log(f"📚 TOTAL KESELURUHAN SELESAI DIKUMPULKAN: {len(video_links)} video.")
+    print_log("-" * 45)
+
+    # 3. PERULANGAN KLIK IKLAN INSTAN (Kembali ke Perilaku Skrip Awal)
+    random.shuffle(video_links)
+    
+    for index, link in enumerate(video_links):
+        print_log(f"\n[{index+1}/{len(video_links)}] Membuka Halaman: {link}")
+        driver.get(link)
+        
+        try:
+            # Tunggu tombol "Accept & Watch Video" selama maksimal 10 detik
+            wait = WebDriverWait(driver, 10)
+            accept_btn = wait.until(EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(text(), 'Accept & Watch Video')] | //div[contains(@class, 'watched')]//button")
+            ))
+            
+            main_window = driver.current_window_handle
+            print_log("🔘 Tombol 'Accept & Watch Video' ditemukan! Melakukan klik...")
+            accept_btn.click()
+            time.sleep(3) # Beri waktu jendela tab baru terbuka
+
+            # Cari jika ada jendela/tab baru yang terbuka
+            all_windows = driver.window_handles
+            if len(all_windows) > 1:
+                # Pindah fokus ke tab iklan baru
+                for window in all_windows:
+                    if window != main_window:
+                        driver.switch_to.window(window)
+                        break
                 
-                actions = ActionChains(driver)
-                actions.move_to_element(video_element).click().perform()
-                print_log("Klik Play.")
+                # Tangkap URL dari website iklan tersebut
+                ad_url = driver.current_url
+                domain = urlparse(ad_url).netloc
+                print_log(f"🌐 [WEB IKLAN TERBUKA]: {domain if domain else ad_url}")
+                print_log("⏳ Menunggu di tab iklan selama 10 detik...")
+                
+                # Diamkan tab iklan selama 10 detik pas
+                time.sleep(10)
+                
+                # Tutup tab iklan dan kembali ke tab utama
+                driver.close()
+                driver.switch_to.window(main_window)
+                print_log("✅ Tab iklan ditutup. Langsung melompat ke video berikutnya!")
+            else:
+                print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
+                
+        except Exception as e:
+            print_log("❌ Tombol iklan tidak terdeteksi / Gagal diklik pada halaman ini. Skip...")
 
-                duration = driver.execute_script("return arguments[0].duration;", video_element)
-                if duration and duration > 0:
-                    print_log(f"Durasi: {int(duration)} detik.")
-                    start_watch = time.time()
-                    while True:
-                        current = driver.execute_script("return arguments[0].currentTime;", video_element)
-                        ended = driver.execute_script("return arguments[0].ended;", video_element)
-                        if ended or current >= (duration - 1):
-                            print_log("Selesai.")
-                            break
-                        if (time.time() - start_watch) > (duration + 20):
-                            break
-                        time.sleep(5)
-                else:
-                    time.sleep(25)
-            except Exception:
-                print_log("Gagal memuat video.")
-            
-            time.sleep(random.randint(4, 7))
+        time.sleep(random.randint(1, 3))
 
-    except Exception as e:
-        print_log(f"ERROR: {e}")
-    finally:
-        driver.quit()
+    driver.quit()
 
 if __name__ == "__main__":
     run_bot()
-    
