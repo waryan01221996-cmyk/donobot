@@ -1,4 +1,4 @@
-name: waryan
+name: Manual Mode
 
 on:
   workflow_dispatch: # Hanya bisa dijalankan secara manual
@@ -37,9 +37,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🧹 Membersihkan riwayat run lama dari workflow ini..."
-          # Mengambil daftar run ID yang statusnya sudah selesai (completed), lalu menghapusnya satu per satu
-          for run_id in $(gh run list --workflow=manual.yml --status=completed --json databaseId --jq '.[].databaseId'); do
+          echo "🧹 Membersihkan riwayat run lama untuk workflow: $GITHUB_WORKFLOW..."
+          # Mengambil daftar run ID yang sudah completed berdasarkan nama workflow saat ini
+          for run_id in $(gh run list --workflow="$GITHUB_WORKFLOW" --status=completed --json databaseId --jq '.[].databaseId'); do
             echo "Menghapus run ID: $run_id"
             gh run delete "$run_id"
           done
@@ -49,5 +49,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🔄 Memulai ulang workflow secara otomatis..."
-          gh workflow run manual.yml
+          echo "🔄 Memulai ulang workflow ($GITHUB_WORKFLOW) secara otomatis..."
+          # Memicu ulang menggunakan nama workflow resmi yang terdaftar, aman dari kendala nama file .yml
+          gh workflow run "$GITHUB_WORKFLOW"
