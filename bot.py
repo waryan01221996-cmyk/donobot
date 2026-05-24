@@ -79,23 +79,25 @@ def run_bot():
         "https://www.febspot.com/video/3141592"
     ]
 
-    print_log(">>> Menyiapkan Selenium WebDriver (Koneksi Reguler Tanpa Tor)...")
+    print_log(">>> Menyiapkan Selenium WebDriver (Mode Jendela Virtual)...")
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
+    
+    # 🌟 HEADLESS DIHAPUS AGAR CHROME BISA MEMBUKA TAB BARU SECARA FISIK DI XVFB
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--mute-audio")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     
-    # 🌟 PERTAHANAN UTAMA: Membuka paksa izin multi-jendela di level preferensi profil Chrome
+    # Setelan preferensi pop-up agar bebas terbuka
     prefs = {
-        "profile.default_content_setting_values.popups": 1, # 1 = Izinkan seluruh pop-up/tab baru
+        "profile.default_content_setting_values.popups": 1,
         "profile.managed_default_content_settings.popups": 1
     }
     options.add_experimental_option("prefs", prefs)
 
     driver = webdriver.Chrome(options=options)
+    driver.set_window_size(1920, 1080)
     
     # 1. CEK KONEKSI IP UTAMA BROWSER
     try:
@@ -142,7 +144,7 @@ def run_bot():
     print_log(f"📚 TOTAL KESELURUHAN SELESAI DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
 
-    # 3. PERULANGAN KLIK TOMBOL ASLI
+    # 3. PERULANGAN KLIK TOMBOL IKLAN
     random.shuffle(video_links)
     
     for index, link in enumerate(video_links):
@@ -158,13 +160,14 @@ def run_bot():
             main_window = driver.current_window_handle
             print_log("🔘 Tombol konfirmasi ditemukan! Melakukan klik tiruan (ActionChains)...")
             
-            # 🌟 PERTAHANAN KEDUA: Klik menggunakan ActionChains agar menyerupai gerakan mouse manusia asli
+            # Melakukan klik layaknya manusia asli bergerak menuju tombol
             actions = ActionChains(driver)
             actions.move_to_element(accept_btn).click().perform()
-            time.sleep(5)
+            time.sleep(6)
 
             all_windows = driver.window_handles
             if len(all_windows) > 1:
+                # Alihkan kontrol selenium ke tab iklan eksternal yang baru terbuka
                 for window in all_windows:
                     if window != main_window:
                         driver.switch_to.window(window)
@@ -177,9 +180,9 @@ def run_bot():
                 
                 time.sleep(10)
                 
-                driver.close()
-                driver.switch_to.window(main_window)
-                print_log("✅ Tab iklan ditutup. Bersiap lompat ke video berikutnya!")
+                driver.close() # Menutup tab iklan
+                driver.switch_to.window(main_window) # Kembali ke halaman video asal
+                print_log("✅ Tab iklan ditutup. Bersiap melompat ke video berikutnya!")
             else:
                 print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
                 
