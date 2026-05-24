@@ -156,25 +156,23 @@ def run_bot():
             
             main_window = driver.current_window_handle
             
-            # 🌟 PRO-TRICK 1: Scroll tepat ke posisi tombol agar terlihat aktif di viewport layar virtual
+            # Scroll ke tengah elemen
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
             time.sleep(2)
             
-            print_log("🔘 Tombol konfirmasi ditemukan! Mengirim interaksi gerakan...")
+            print_log("🔘 Tombol ditemukan! Mencoba memicu klik murni (ActionChains)...")
             
-            # 🌟 PRO-TRICK 2: Simulasi arahkan mouse (Hover) terlebih dahulu, tunggu 1 detik, baru tekan klik
-            actions = ActionChains(driver)
-            actions.move_to_element(accept_btn).pause(1.5).click().perform()
-            time.sleep(4)
-
-            all_windows = driver.window_handles
-            
-            # 🌟 PRO-TRICK 3: JIKA ActionChains diredam proteksi, gunakan Native JavaScript Click sebagai cadangan otomatis
-            if len(all_windows) == 1:
-                print_log("🔄 Tab eksternal belum merespons. Mengeksekusi dengan metode Injeksi Klik...")
+            # Eksekusi Klik Utama
+            try:
+                actions = ActionChains(driver)
+                actions.move_to_element(accept_btn).pause(1.0).click().perform()
+            except Exception:
+                print_log("⚠️ ActionChains diblokir, mengeksekusi metode injeksi paksa...")
                 driver.execute_script("arguments[0].click();", accept_btn)
-                time.sleep(5)
-                all_windows = driver.window_handles
+
+            # 🌟 STRATEGI BARU: Pemantauan jendela diletakkan di luar blok try-catch elemen
+            time.sleep(5)
+            all_windows = driver.window_handles
 
             if len(all_windows) > 1:
                 for window in all_windows:
@@ -193,10 +191,10 @@ def run_bot():
                 driver.switch_to.window(main_window)
                 print_log("✅ Tab iklan ditutup. Bersiap melompat ke video berikutnya!")
             else:
-                print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
+                print_log("⚠️ Tombol terproses (Video berjalan), namun tidak ada iklan pop-up eksternal yang diisi penyedia.")
                 
-        except Exception as e:
-            print_log("❌ Tombol iklan tidak terdeteksi / Gagal diklik pada halaman ini. Skip...")
+        except Exception as global_error:
+            print_log(f"❌ Terjadi gangguan akses pada halaman ini. Skip...")
 
         time.sleep(random.randint(3, 5))
 
