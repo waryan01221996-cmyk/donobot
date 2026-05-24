@@ -80,15 +80,13 @@ def run_bot():
 
     print_log(">>> Menyiapkan Selenium WebDriver (Koneksi Reguler Tanpa Tor)...")
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
+    options.add_argument("--headless=new") # Menggunakan mesin headless baru yang lebih stabil
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--mute-audio")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-    
-    # Perbaikan Utama: Mengizinkan tab baru terbuka otomatis tanpa diblokir sistem
     options.add_argument("--disable-popup-blocking")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
     driver = webdriver.Chrome(options=options)
     
@@ -108,7 +106,6 @@ def run_bot():
     time.sleep(6)
 
     last_count = 0
-    
     for i in range(25): 
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(3)
@@ -138,7 +135,7 @@ def run_bot():
     print_log(f"📚 TOTAL KESELURUHAN SELESAI DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
 
-    # 3. PERULANGAN KLIK IKLAN INSTAN
+    # 3. PERULANGAN PROSES IKLAN MANDIRI
     random.shuffle(video_links)
     
     for index, link in enumerate(video_links):
@@ -146,18 +143,32 @@ def run_bot():
         driver.get(link)
         
         try:
-            wait = WebDriverWait(driver, 10)
-            accept_btn = wait.until(EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(text(), 'Watch Video')] | //button[contains(text(), 'Accept & Watch Video')] | //div[contains(@class, 'watched')]//button")
+            wait = WebDriverWait(driver, 12)
+            # Mencari elemen pembungkus tautan/tombol iklan di halaman video Febspot
+            target_el = wait.until(EC.presence_of_element_to_be_clickable(
+                (By.XPATH, "//button[contains(text(), 'Watch Video')] | //button[contains(text(), 'Accept & Watch Video')] | //div[contains(@class, 'watched')]//button | //a[contains(@href, 'ad')]")
             ))
             
             main_window = driver.current_window_handle
-            print_log("🔘 Tombol konfirmasi ditemukan! Melakukan klik...")
-            accept_btn.click()
+            
+            # Ambil URL iklan langsung dari atribut 'href' atau javascript onclick jika tersedia
+            ad_href = target_el.get_attribute("href")
+            
+            # JIKA elemen berupa tombol biasa tanpa direct href, kita ekstrak link iklan dari API/Event window internal Febspot
+            if not ad_href:
+                ad_href = driver.execute_script(
+                    "return typeof window.adLink !== 'undefined' ? window.adLink : 'https://www.febspot.com/redirect-zone';"
+                )
+
+            print_log("🔘 Elemen pemicu iklan terdeteksi. Memaksa pembukaan tab baru via Script...")
+            
+            # 🔥 INJEKSI JAVASCRIPT: Memaksa bypass Pop-up Blocker dengan membuka jendela secara direct
+            driver.execute_script(f"window.open('{ad_href}', '_blank');")
             time.sleep(4)
 
             all_windows = driver.window_handles
             if len(all_windows) > 1:
+                # Alihkan fokus robot ke tab eksternal yang baru saja kita paksa buka
                 for window in all_windows:
                     if window != main_window:
                         driver.switch_to.window(window)
@@ -174,10 +185,14 @@ def run_bot():
                 driver.switch_to.window(main_window)
                 print_log("✅ Tab iklan ditutup. Langsung melompat ke video berikutnya!")
             else:
-                print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
+                # Alternatif darurat: jika tab tetap tidak terbuka, muat iklannya langsung di tab yang sama agar sistem mencatat impresi
+                print_log("⚠️ Tab baru terblokir ketat. Mengeksekusi iklan langsung di jendela utama...")
+                driver.get(ad_href)
+                time.sleep(10)
+                driver.get(link) # Kembali ke video semula setelah selesai memicu iklan
                 
         except Exception as e:
-            print_log("❌ Tombol iklan tidak terdeteksi / Gagal diklik pada halaman ini. Skip...")
+            print_log("❌ Gagal memproses struktur iklan pada halaman ini. Skip...")
 
         time.sleep(random.randint(1, 3))
 
