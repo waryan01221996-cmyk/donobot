@@ -81,15 +81,12 @@ def run_bot():
 
     print_log(">>> Menyiapkan Selenium WebDriver (Mode Jendela Virtual)...")
     options = webdriver.ChromeOptions()
-    
-    # 🌟 HEADLESS DIHAPUS AGAR CHROME BISA MEMBUKA TAB BARU SECARA FISIK DI XVFB
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--mute-audio")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     
-    # Setelan preferensi pop-up agar bebas terbuka
     prefs = {
         "profile.default_content_setting_values.popups": 1,
         "profile.managed_default_content_settings.popups": 1
@@ -152,22 +149,34 @@ def run_bot():
         driver.get(link)
         
         try:
-            wait = WebDriverWait(driver, 12)
+            wait = WebDriverWait(driver, 15)
             accept_btn = wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//button[contains(text(), 'Watch Video')] | //button[contains(text(), 'Accept & Watch Video')] | //div[contains(@class, 'watched')]//button")
             ))
             
             main_window = driver.current_window_handle
-            print_log("🔘 Tombol konfirmasi ditemukan! Melakukan klik tiruan (ActionChains)...")
             
-            # Melakukan klik layaknya manusia asli bergerak menuju tombol
+            # 🌟 PRO-TRICK 1: Scroll tepat ke posisi tombol agar terlihat aktif di viewport layar virtual
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
+            time.sleep(2)
+            
+            print_log("🔘 Tombol konfirmasi ditemukan! Mengirim interaksi gerakan...")
+            
+            # 🌟 PRO-TRICK 2: Simulasi arahkan mouse (Hover) terlebih dahulu, tunggu 1 detik, baru tekan klik
             actions = ActionChains(driver)
-            actions.move_to_element(accept_btn).click().perform()
-            time.sleep(6)
+            actions.move_to_element(accept_btn).pause(1.5).click().perform()
+            time.sleep(4)
 
             all_windows = driver.window_handles
+            
+            # 🌟 PRO-TRICK 3: JIKA ActionChains diredam proteksi, gunakan Native JavaScript Click sebagai cadangan otomatis
+            if len(all_windows) == 1:
+                print_log("🔄 Tab eksternal belum merespons. Mengeksekusi dengan metode Injeksi Klik...")
+                driver.execute_script("arguments[0].click();", accept_btn)
+                time.sleep(5)
+                all_windows = driver.window_handles
+
             if len(all_windows) > 1:
-                # Alihkan kontrol selenium ke tab iklan eksternal yang baru terbuka
                 for window in all_windows:
                     if window != main_window:
                         driver.switch_to.window(window)
@@ -176,12 +185,12 @@ def run_bot():
                 ad_url = driver.current_url
                 domain = urlparse(ad_url).netloc
                 print_log(f"🌐 [WEB IKLAN TERBUKA]: {domain if domain else ad_url}")
-                print_log("⏳ Menunggu di tab iklan selama 10 detik...")
+                print_log("⏳ Menunggu di tab iklan selama 12 detik...")
                 
-                time.sleep(10)
+                time.sleep(12)
                 
-                driver.close() # Menutup tab iklan
-                driver.switch_to.window(main_window) # Kembali ke halaman video asal
+                driver.close()
+                driver.switch_to.window(main_window)
                 print_log("✅ Tab iklan ditutup. Bersiap melompat ke video berikutnya!")
             else:
                 print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
@@ -189,7 +198,7 @@ def run_bot():
         except Exception as e:
             print_log("❌ Tombol iklan tidak terdeteksi / Gagal diklik pada halaman ini. Skip...")
 
-        time.sleep(random.randint(2, 4))
+        time.sleep(random.randint(3, 5))
 
     driver.quit()
 
