@@ -1,6 +1,7 @@
 import sys
 import time
 import random
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -13,6 +14,22 @@ def print_log(text):
     timestamp = time.strftime("%H:%M:%S")
     print(f"[{timestamp}] {text}", flush=True)
     sys.stdout.flush()
+
+# 🌟 FUNGSI AMBIL PROXY GRATIS SECARA ACAK UNTUK MENGECOH SISTEM IKLAN
+def get_free_proxy():
+    print_log("🌐 Mencari list proxy publik untuk bypass proteksi iklan...")
+    try:
+        # Mengambil list proxy HTTP gratis dari API publik
+        response = requests.get("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all", timeout=10)
+        if response.status_code == 200:
+            proxies = response.text.strip().split("\r\n")
+            if proxies and len(proxies) > 5:
+                chosen = random.choice(proxies)
+                print_log(f"🛰️ Proxy Terpilih secara acak: {chosen}")
+                return chosen
+    except Exception:
+        print_log("⚠️ Gagal mengambil proxy otomatis, menggunakan koneksi standar GitHub...")
+    return None
 
 def run_bot():
     # Daftar 119 link video manual bawaan kamu
@@ -87,6 +104,11 @@ def run_bot():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     
+    # 🌟 SUNTIKKAN PROXY JIKA DITEMUKAN UNTUK MENEMBUS BLOKIR IKLAN
+    active_proxy = get_free_proxy()
+    if active_proxy:
+        options.add_argument(f"--proxy-server={active_proxy}")
+
     prefs = {
         "profile.default_content_setting_values.popups": 1,
         "profile.managed_default_content_settings.popups": 1
@@ -103,13 +125,18 @@ def run_bot():
         print_log(f"🟢 IP BROWSER AKTIF: {ip_addr.strip()}")
         print_log("-" * 45)
     except Exception:
-        print_log("⚠️ Gagal cek IP, lanjut mengeksekusi target...")
+        print_log("⚠️ Gagal koneksi ke IP Checker, proxy mungkin lambat/mati. Melanjutkan...")
 
     # 2. LOAD MORE DARI PROFIL
     profile_url = "https://www.febspot.com/heru01221996"
     print_log(f"🔍 Mencari seluruh video di halaman profil: {profile_url}")
-    driver.get(profile_url)
-    time.sleep(6)
+    try:
+        driver.get(profile_url)
+        time.sleep(8)
+    except Exception:
+        print_log("❌ Gagal memuat profil (Koneksi proxy buruk). Keluar untuk memicu restart workflow...")
+        driver.quit()
+        sys.exit(1)
 
     last_count = 0
     for i in range(25): 
@@ -146,7 +173,12 @@ def run_bot():
     
     for index, link in enumerate(video_links):
         print_log(f"\n[{index+1}/{len(video_links)}] Membuka Halaman: {link}")
-        driver.get(link)
+        try:
+            driver.get(link)
+            time.sleep(3)
+        except Exception:
+            print_log("⚠️ Halaman gagal dimuat sempurna, skip ke video berikutnya...")
+            continue
         
         try:
             wait = WebDriverWait(driver, 15)
@@ -156,21 +188,17 @@ def run_bot():
             
             main_window = driver.current_window_handle
             
-            # Scroll ke tengah elemen
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
             time.sleep(2)
             
             print_log("🔘 Tombol ditemukan! Mencoba memicu klik murni (ActionChains)...")
             
-            # Eksekusi Klik Utama
             try:
                 actions = ActionChains(driver)
                 actions.move_to_element(accept_btn).pause(1.0).click().perform()
             except Exception:
-                print_log("⚠️ ActionChains diblokir, mengeksekusi metode injeksi paksa...")
                 driver.execute_script("arguments[0].click();", accept_btn)
 
-            # 🌟 STRATEGI BARU: Pemantauan jendela diletakkan di luar blok try-catch elemen
             time.sleep(5)
             all_windows = driver.window_handles
 
@@ -201,6 +229,6 @@ def run_bot():
     driver.quit()
 
 if __name__ == "__main__":
-    print_log("🚀 MEMULAI EKSEKUSI TUNGGAL BOT...")
+    print_log("🚀 MEMULAI EKSEKUSI TUNGGAL BOT DENGAN PROXY INTEGRATION...")
     run_bot()
     print_log("🏁 Seluruh video telah selesai diproses. Tugas selesai!")
