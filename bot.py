@@ -86,6 +86,9 @@ def run_bot():
     options.add_argument("--mute-audio")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+    
+    # Perbaikan Utama: Mengizinkan tab baru terbuka otomatis tanpa diblokir sistem
+    options.add_argument("--disable-popup-blocking")
 
     driver = webdriver.Chrome(options=options)
     
@@ -102,7 +105,7 @@ def run_bot():
     profile_url = "https://www.febspot.com/heru01221996"
     print_log(f"🔍 Mencari seluruh video di halaman profil: {profile_url}")
     driver.get(profile_url)
-    time.sleep(6) # Waktu tunggu dikurangi karena koneksi reguler lebih responsif
+    time.sleep(6)
 
     last_count = 0
     
@@ -135,7 +138,7 @@ def run_bot():
     print_log(f"📚 TOTAL KESELURUHAN SELESAI DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
 
-    # 3. PERULANGAN KLIK IKLAN INSTAN (Mendukung tombol baru "Watch Video")
+    # 3. PERULANGAN KLIK IKLAN INSTAN
     random.shuffle(video_links)
     
     for index, link in enumerate(video_links):
@@ -151,7 +154,7 @@ def run_bot():
             main_window = driver.current_window_handle
             print_log("🔘 Tombol konfirmasi ditemukan! Melakukan klik...")
             accept_btn.click()
-            time.sleep(3)
+            time.sleep(4)
 
             all_windows = driver.window_handles
             if len(all_windows) > 1:
