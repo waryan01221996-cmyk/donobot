@@ -79,7 +79,7 @@ def run_bot():
         "https://www.febspot.com/video/3141592"
     ]
 
-    print_log(">>> Menyiapkan Selenium WebDriver (Koneksi Reguler Tanpa Tor)...")
+    print_log(">>> Menyiapkan Selenium WebDriver (IP Standar GitHub)...")
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -98,33 +98,31 @@ def run_bot():
     driver = webdriver.Chrome(options=options)
     driver.set_window_size(1920, 1080)
     
-    # 1. CEK IP AKTIF RUNNER
+    # 1. CEK IP RUNNER AKTIF
     try:
         driver.get("https://api.ipify.org")
         ip_addr = driver.find_element(By.TAG_NAME, "body").text
-        print_log(f"🟢 IP BROWSER AKTIF: {ip_addr.strip()}")
+        print_log(f"🟢 IP BROWSER AKTIF RUNNER: {ip_addr.strip()}")
         print_log("-" * 45)
     except Exception:
         print_log("⚠️ Gagal mengecek IP, melanjutkan...")
 
-    # 2. LOAD MORE VIDEO DARI PROFIL
+    # 2. PROSES SCANNING PROFIL
     profile_url = "https://www.febspot.com/heru01221996"
-    print_log(f"🔍 Mencari seluruh video di halaman profil: {profile_url}")
+    print_log(f"🔍 Mencari video baru di halaman profil: {profile_url}")
     try:
         driver.get(profile_url)
         time.sleep(5)
     except Exception:
-        print_log("⚠️ Gagal memuat profil, menggunakan daftar manual...")
+        print_log("⚠️ Gagal memuat profil, beralih ke daftar internal...")
 
     last_count = 0
     for i in range(15): 
         try:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(3)
-            
             elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
             current_count = len(set([el.get_attribute("href") for el in elements if el.get_attribute("href")]))
-            print_log(f"🔄 Scan ke-{i+1}: Ditemukan {current_count} link sementara di halaman...")
             
             if current_count == last_count: 
                 break
@@ -139,7 +137,7 @@ def run_bot():
     scraped_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
     scraped_links = [el.get_attribute("href") for el in scraped_elements if el.get_attribute("href")]
     video_links = list(set(video_links + scraped_links))
-    print_log(f"📚 TOTAL KESELURUHAN SELESAI DIKUMPULKAN: {len(video_links)} video.")
+    print_log(f"📚 TOTAL BERHASIL DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
 
     # 3. PERULANGAN KLIK TOMBOL IKLAN
@@ -163,7 +161,7 @@ def run_bot():
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
             time.sleep(1)
             
-            print_log("🔘 Tombol ditemukan! Mencoba memicu klik murni (ActionChains)...")
+            print_log("🔘 Tombol ditemukan! Melakukan klik tiruan...")
             try:
                 actions = ActionChains(driver)
                 actions.move_to_element(accept_btn).pause(1.0).click().perform()
@@ -187,18 +185,18 @@ def run_bot():
                 
                 driver.close()
                 driver.switch_to.window(main_window)
-                print_log("✅ Tab iklan ditutup. Bersiap melompat ke video berikutnya!")
+                print_log("✅ Tab iklan ditutup. Lanjut ke target berikutnya.")
             else:
-                print_log("⚠️ Tombol terproses (Video berjalan), namun tidak ada iklan pop-up eksternal yang diisi penyedia.")
+                print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
                 
         except Exception:
-            print_log("❌ Terjadi gangguan akses pada halaman ini. Skip...")
+            print_log("❌ Gagal memproses struktur iklan pada halaman ini. Skip...")
 
         time.sleep(random.randint(3, 5))
 
     driver.quit()
 
 if __name__ == "__main__":
-    print_log("🚀 MEMULAI EKSEKUSI TUNGGAL BOT DENGAN IP STANDARD GITHUB...")
+    print_log("🚀 MEMULAI EKSEKUSI TUNGGAL BOT...")
     run_bot()
-    print_log("🏁 Seluruh video telah selesai diproses. Tugas selesai!")
+    print_log("🏁 Tugas putaran selesai! Memicu siklus rerun otomatis di langkah berikutnya...")
