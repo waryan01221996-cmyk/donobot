@@ -19,19 +19,22 @@ jobs:
     - name: Install Google Chrome
       run: |
         sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
+        sudo apt-get install -y wget curl unzip
+        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        sudo apt install -y ./google-chrome-stable_current_amd64.deb
 
-    # 🌟 BARIS BARU: Menginstal komponen layar virtual di server Ubuntu Github Actions
     - name: Install Virtual Display (Xvfb)
       run: |
         sudo apt-get install -y xvfb
 
     - name: Install dependencies
       run: |
-        pip install selenium webdriver-manager
+        python -m pip install --upgrade pip
+        pip install selenium requests urllib3
 
-    # 🌟 BARIS BARU: Menjalankan skrip Python di dalam bungkus layar virtual xvfb
     - name: Run bot
+      env:
+        PYTHONUNBUFFERED: "1"
       run: |
         xvfb-run --server-args="-screen 0 1920x1080x24" python -u bot.py
 
@@ -43,11 +46,12 @@ jobs:
         retain_days: 0
         keep_minimum_runs: 1
 
-    # 🌟 FIX ERROR 404: Mengubah pemicu rerun otomatis ke file 'manual.yml' yang benar
     - name: Trigger Rerun Otomatis
       if: always()
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "🔄 Memulai ulang workflow secara otomatis..."
-        gh workflow run manual.yml --ref ${{ github.ref_name }}
+        WORKFLOW_FILE=$(basename "${{ github.workflow_ref }}" | cut -d'@' -f1)
+        echo "Nama file workflow terdeteksi: $WORKFLOW_FILE"
+        gh workflow run "$WORKFLOW_FILE" --repo "${{ github.repository }}"
