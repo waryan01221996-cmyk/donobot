@@ -54,4 +54,4 @@ jobs:
       run: |
         echo "🔄 Memicu ulang workflow secara otomatis..."
         # Mengunci target langsung ke file manual_1.yml agar tidak terjadi eror 404 atau salah deteksi nama
-        gh workflow run manual_1.yml --repo "${{ github.repository }}"
+        gh workflow run main.yml --repo "${{ github.repository }}"
