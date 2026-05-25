@@ -46,12 +46,12 @@ jobs:
         retain_days: 0
         keep_minimum_runs: 1
 
+    # 🌟 PERBAIKAN TOTAL: Mengunci nama file agar tidak eror "named main" lagi
     - name: Trigger Rerun Otomatis
       if: always()
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "🔄 Memulai ulang workflow secara otomatis..."
-        WORKFLOW_FILE=$(basename "${{ github.workflow_ref }}" | cut -d'@' -f1)
-        echo "Nama file workflow terdeteksi: $WORKFLOW_FILE"
-        gh workflow run "$WORKFLOW_FILE" --repo "${{ github.repository }}"
+        echo "🔄 Memicu ulang workflow secara otomatis..."
+        # Mengunci target langsung ke file manual_1.yml agar tidak terjadi eror 404 atau salah deteksi nama
+        gh workflow run manual_1.yml --repo "${{ github.repository }}"
