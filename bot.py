@@ -15,7 +15,7 @@ def print_log(text):
     sys.stdout.flush()
 
 def run_bot():
-    # Daftar 119 link video manual bawaan kamu
+    # Daftar link video manual bawaan kamu
     video_links = [
         "https://www.febspot.com/video/3218504", "https://www.febspot.com/video/3218505",
         "https://www.febspot.com/video/3218527", "https://www.febspot.com/video/3218528",
@@ -79,11 +79,9 @@ def run_bot():
         "https://www.febspot.com/video/3141592"
     ]
 
-    print_log(">>> Menyiapkan Selenium WebDriver (Koneksi Jalur Tor Proxy + Headless Fix)...")
+    print_log(">>> Menyiapkan Selenium WebDriver (Koneksi Reguler Tanpa Tor)...")
     options = webdriver.ChromeOptions()
-    
-    # Argumen wajib lingkungan server/terminal agar tidak crash
-    options.add_argument("--headless=new")  # 🌟 FIX UTAMA: Paksa jalan di background
+    options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
@@ -91,68 +89,55 @@ def run_bot():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     
-    # Mengarahkan trafik penuh ke port proxy bawaan Tor lokal
-    options.add_argument("--proxy-server=socks5://127.0.0.1:9050")
-
     prefs = {
         "profile.default_content_setting_values.popups": 1,
         "profile.managed_default_content_settings.popups": 1
     }
     options.add_experimental_option("prefs", prefs)
 
-    try:
-        driver = webdriver.Chrome(options=options)
-        driver.set_window_size(1920, 1080)
-    except Exception as init_err:
-        print_log(f"❌ Driver gagal dibuat. Pastikan Tor service sudah aktif! Eror: {init_err}")
-        sys.exit(1)
+    driver = webdriver.Chrome(options=options)
+    driver.set_window_size(1920, 1080)
     
-    # 1. VERIFIKASI APAKAH IP TOR SUDAH AKTIF
+    # 1. CEK IP AKTIF RUNNER
     try:
         driver.get("https://api.ipify.org")
         ip_addr = driver.find_element(By.TAG_NAME, "body").text
-        print_log(f"🟢 BROWSER RUNNING VIA TOR IP: {ip_addr.strip()}")
+        print_log(f"🟢 IP BROWSER AKTIF: {ip_addr.strip()}")
         print_log("-" * 45)
     except Exception:
-        print_log("❌ Gagal terhubung ke jaringan Tor Lokal. Pastikan service tor sudah berjalan di terminal!")
-        driver.quit()
-        sys.exit(1)
+        print_log("⚠️ Gagal mengecek IP, melanjutkan...")
 
-    # 2. LOAD MORE DARI PROFIL
+    # 2. LOAD MORE VIDEO DARI PROFIL
     profile_url = "https://www.febspot.com/heru01221996"
     print_log(f"🔍 Mencari seluruh video di halaman profil: {profile_url}")
     try:
         driver.get(profile_url)
-        time.sleep(10)
+        time.sleep(5)
     except Exception:
-        print_log("⚠️ Gagal memuat profil via Tor, mencoba langsung memproses daftar video manual...")
+        print_log("⚠️ Gagal memuat profil, menggunakan daftar manual...")
 
     last_count = 0
     for i in range(15): 
         try:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(4)
+            time.sleep(3)
             
             elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
             current_count = len(set([el.get_attribute("href") for el in elements if el.get_attribute("href")]))
-            
             print_log(f"🔄 Scan ke-{i+1}: Ditemukan {current_count} link sementara di halaman...")
             
             if current_count == last_count: 
-                print_log("✨ Scanning profil selesai.")
                 break
-                
             last_count = current_count
 
             load_more_btn = driver.find_element(By.XPATH, "//*[contains(text(), 'Load more')]")
             driver.execute_script("arguments[0].click();", load_more_btn)
-            time.sleep(4)
+            time.sleep(3)
         except Exception:
             break
 
     scraped_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
     scraped_links = [el.get_attribute("href") for el in scraped_elements if el.get_attribute("href")]
-    
     video_links = list(set(video_links + scraped_links))
     print_log(f"📚 TOTAL KESELURUHAN SELESAI DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
@@ -164,9 +149,8 @@ def run_bot():
         print_log(f"\n[{index+1}/{len(video_links)}] Membuka Halaman: {link}")
         try:
             driver.get(link)
-            time.sleep(5)
+            time.sleep(3)
         except Exception:
-            print_log("⚠️ Koneksi Tor melambat, skip ke video berikutnya...")
             continue
         
         try:
@@ -176,19 +160,17 @@ def run_bot():
             ))
             
             main_window = driver.current_window_handle
-            
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
-            time.sleep(2)
+            time.sleep(1)
             
             print_log("🔘 Tombol ditemukan! Mencoba memicu klik murni (ActionChains)...")
-            
             try:
                 actions = ActionChains(driver)
                 actions.move_to_element(accept_btn).pause(1.0).click().perform()
             except Exception:
                 driver.execute_script("arguments[0].click();", accept_btn)
 
-            time.sleep(6)
+            time.sleep(5)
             all_windows = driver.window_handles
 
             if len(all_windows) > 1:
@@ -199,9 +181,8 @@ def run_bot():
                 
                 ad_url = driver.current_url
                 domain = urlparse(ad_url).netloc
-                print_log(f"🌐 [WEB IKLAN TERBUKA VIA TOR]: {domain if domain else ad_url}")
+                print_log(f"🌐 [WEB IKLAN TERBUKA]: {domain if domain else ad_url}")
                 print_log("⏳ Menunggu di tab iklan selama 12 detik...")
-                
                 time.sleep(12)
                 
                 driver.close()
@@ -210,14 +191,14 @@ def run_bot():
             else:
                 print_log("⚠️ Tombol terproses (Video berjalan), namun tidak ada iklan pop-up eksternal yang diisi penyedia.")
                 
-        except Exception as global_error:
-            print_log(f"❌ Terjadi gangguan akses pada halaman ini. Skip...")
+        except Exception:
+            print_log("❌ Terjadi gangguan akses pada halaman ini. Skip...")
 
-        time.sleep(random.randint(4, 7))
+        time.sleep(random.randint(3, 5))
 
     driver.quit()
 
 if __name__ == "__main__":
-    print_log("🚀 MEMULAI EKSEKUSI TUNGGAL BOT DENGAN JALUR TOR...")
+    print_log("🚀 MEMULAI EKSEKUSI TUNGGAL BOT DENGAN IP STANDARD GITHUB...")
     run_bot()
     print_log("🏁 Seluruh video telah selesai diproses. Tugas selesai!")
