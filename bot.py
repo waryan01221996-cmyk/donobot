@@ -140,7 +140,7 @@ def run_bot():
     print_log(f"📚 TOTAL BERHASIL DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
 
-    # 3. PERULANGAN KLIK TOMBOL IKLAN
+    # 3. PERULANGAN MEMUTAR VIDEO
     random.shuffle(video_links)
     
     for index, link in enumerate(video_links):
@@ -157,11 +157,10 @@ def run_bot():
                 (By.XPATH, "//button[contains(text(), 'Watch Video')] | //button[contains(text(), 'Accept & Watch Video')] | //div[contains(@class, 'watched')]//button")
             ))
             
-            main_window = driver.current_window_handle
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
             time.sleep(1)
             
-            print_log("🔘 Tombol ditemukan! Melakukan klik tiruan...")
+            print_log("🔘 Tombol ditemukan! Mengklik tombol untuk memuat player...")
             try:
                 actions = ActionChains(driver)
                 actions.move_to_element(accept_btn).pause(1.0).click().perform()
@@ -169,28 +168,29 @@ def run_bot():
                 driver.execute_script("arguments[0].click();", accept_btn)
 
             time.sleep(5)
-            all_windows = driver.window_handles
-
-            if len(all_windows) > 1:
-                for window in all_windows:
-                    if window != main_window:
-                        driver.switch_to.window(window)
-                        break
-                
-                ad_url = driver.current_url
-                domain = urlparse(ad_url).netloc
-                print_log(f"🌐 [WEB IKLAN TERBUKA]: {domain if domain else ad_url}")
-                print_log("⏳ Menunggu di tab iklan selama 12 detik...")
-                time.sleep(12)
-                
-                driver.close()
-                driver.switch_to.window(main_window)
-                print_log("✅ Tab iklan ditutup. Lanjut ke target berikutnya.")
+            
+            # Putar video dan ambil durasinya
+            video_script = """
+                var video = document.querySelector('video');
+                if (video) {
+                    video.play();
+                    return video.duration;
+                }
+                return null;
+            """
+            duration = driver.execute_script(video_script)
+            
+            if duration and duration > 0:
+                wait_time = int(duration)
+                print_log(f"▶️ Video diputar. Menunggu selama {wait_time} detik sampai selesai...")
+                time.sleep(wait_time)
+                print_log("✅ Video selesai. Pindah ke target berikutnya.")
             else:
-                print_log("⚠️ Klik berhasil dilakukan, namun tidak ada tab iklan eksternal terbuka.")
+                print_log("⚠️ Gagal mendapatkan durasi video, menunggu default 30 detik...")
+                time.sleep(30)
                 
         except Exception:
-            print_log("❌ Gagal memproses struktur iklan pada halaman ini. Skip...")
+            print_log("❌ Gagal memproses halaman ini. Skip...")
 
         time.sleep(random.randint(3, 5))
 
