@@ -147,29 +147,12 @@ def run_bot():
         print_log(f"\n[{index+1}/{len(video_links)}] Membuka Halaman: {link}")
         try:
             driver.get(link)
-            time.sleep(3)
+            time.sleep(4) # Waktu tunggu agar halaman video ter-load
         except Exception:
             continue
         
         try:
-            wait = WebDriverWait(driver, 15)
-            accept_btn = wait.until(EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(text(), 'Watch Video')] | //button[contains(text(), 'Accept & Watch Video')] | //div[contains(@class, 'watched')]//button")
-            ))
-            
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", accept_btn)
-            time.sleep(1)
-            
-            print_log("🔘 Tombol ditemukan! Mengklik tombol untuk memuat player...")
-            try:
-                actions = ActionChains(driver)
-                actions.move_to_element(accept_btn).pause(1.0).click().perform()
-            except Exception:
-                driver.execute_script("arguments[0].click();", accept_btn)
-
-            time.sleep(5)
-            
-            # Putar video dan ambil durasinya
+            # Menggunakan JavaScript untuk langsung mencari elemen video, klik play, dan ambil total durasi
             video_script = """
                 var video = document.querySelector('video');
                 if (video) {
@@ -182,15 +165,15 @@ def run_bot():
             
             if duration and duration > 0:
                 wait_time = int(duration)
-                print_log(f"▶️ Video diputar. Menunggu selama {wait_time} detik sampai selesai...")
-                time.sleep(wait_time)
-                print_log("✅ Video selesai. Pindah ke target berikutnya.")
+                print_log(f"▶️ Video berhasil diputar. Menunggu selama {wait_time} detik sampai selesai...")
+                time.sleep(wait_time + 2) # Buffer 2 detik untuk memastikan video benar-benar tamat
+                print_log("✅ Video selesai. Lanjut ke target berikutnya.")
             else:
                 print_log("⚠️ Gagal mendapatkan durasi video, menunggu default 30 detik...")
                 time.sleep(30)
                 
         except Exception:
-            print_log("❌ Gagal memproses halaman ini. Skip...")
+            print_log("❌ Gagal mengeksekusi pemutaran video pada halaman ini. Skip...")
 
         time.sleep(random.randint(3, 5))
 
