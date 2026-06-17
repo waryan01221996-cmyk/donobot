@@ -136,7 +136,11 @@ def run_bot():
 
     scraped_elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/video/')]")
     scraped_links = [el.get_attribute("href") for el in scraped_elements if el.get_attribute("href")]
-    video_links = list(set(video_links + scraped_links))
+    
+    # BAGIAN YANG DIUBAH: Menghapus duplikat tanpa mengacak urutan terbaru, lalu mengambil 100 batas
+    all_links = scraped_links + video_links
+    video_links = list(dict.fromkeys(all_links))[:100]
+    
     print_log(f"📚 TOTAL BERHASIL DIKUMPULKAN: {len(video_links)} video.")
     print_log("-" * 45)
 
